@@ -110,7 +110,7 @@ connectDB().then(() => {
     try {
       const products = await Inventory.find();
       const totalSales = products.reduce((sum, p) => sum + p.sales, 0);
-      res.json({ sales: parseFloat(totalSales.toFixed(2)) });
+      res.json({ sales: parseFloat(totalSales.toFixed(1)) });
     } catch (err) {
       res.status(500).json({ message: 'ERROR' });
     }
