@@ -6,6 +6,7 @@ import mongoose from "mongoose";
 
 dotenv.config();
 
+app.enable('trust proxy');
 app.use(express.json());
 app.use(cors());
 
