@@ -6,7 +6,7 @@ import mongoose from "mongoose";
 
 dotenv.config();
 
-app.enable('trust proxy');
+app.enable("trust proxy");
 app.use(express.json());
 app.use(cors());
 
@@ -62,7 +62,7 @@ connectDB().then(() => {
 
   app.get("/v1/stocks/:name?", async (req, res) => {
     const { name } = req.params;
-  
+
     try {
       if (name) {
         const product = await Inventory.findOne({ name });
@@ -71,7 +71,8 @@ connectDB().then(() => {
         const allStocks = await Inventory.find({});
         const result = {};
         allStocks.forEach((product) => {
-          if (product.stock > 0) { // Use 'stock'
+          if (product.stock > 0) {
+            // Use 'stock'
             result[product.name] = product.stock;
           }
         });
@@ -81,50 +82,57 @@ connectDB().then(() => {
       res.status(500).json({ message: "ERROR" });
     }
   });
-  
-  app.post('/v1/sales', async (req, res) => {
+
+  app.post("/v1/sales", async (req, res) => {
     const { name, amount = 1, price } = req.body;
-  
-    if (!name || typeof name !== 'string' || name.length > 8 || !/^[a-zA-Z]+$/.test(name) || amount <= 0 || !Number.isInteger(amount) || (price && price <= 0)) {
-      return res.status(400).json({ message: 'ERROR' });
+
+    if (
+      !name ||
+      typeof name !== "string" ||
+      name.length > 8 ||
+      !/^[a-zA-Z]+$/.test(name) ||
+      amount <= 0 ||
+      !Number.isInteger(amount) ||
+      (price && price <= 0)
+    ) {
+      return res.status(400).json({ message: "ERROR" });
     }
-  
+
     try {
       const product = await Inventory.findOne({ name });
       if (!product || product.stock < amount) {
-        return res.status(400).json({ message: 'ERROR' });
+        return res.status(400).json({ message: "ERROR" });
       }
-  
+
       product.stock -= amount;
       product.sales += price ? amount * price : 0;
       await product.save();
-  
-      res.json({ name, amount , price });
+
+      res.json({ name, amount, price });
     } catch (err) {
-      res.status(500).json({ message: 'ERROR' });
+      res.status(500).json({ message: "ERROR" });
     }
   });
-  
 
-  app.get('/v1/sales', async (req, res) => {
+  app.get("/v1/sales", async (req, res) => {
     try {
       const products = await Inventory.find();
       const totalSales = products.reduce((sum, p) => sum + p.sales, 0);
-      res.json({ sales: parseFloat(totalSales.toFixed(1)) });
+      const formattedSales = totalSales.toFixed(1); // Ensures one decimal place
+      res.json({ sales: formattedSales }); // Send as a string
     } catch (err) {
-      res.status(500).json({ message: 'ERROR' });
+      res.status(500).json({ message: "ERROR" });
     }
   });
 
-  app.delete('/v1/stocks', async (req, res) => {
+  app.delete("/v1/stocks", async (req, res) => {
     try {
       await Inventory.deleteMany({});
       res.status(204).send();
     } catch (err) {
-      res.status(500).json({ message: 'ERROR' });
+      res.status(500).json({ message: "ERROR" });
     }
   });
-  
 
   app.get("/", (req, res) => {
     res.status(200).json({ message: "OK" });
