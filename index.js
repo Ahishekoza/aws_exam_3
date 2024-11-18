@@ -121,7 +121,8 @@ connectDB().then(() => {
       const totalSales = products.reduce((sum, p) => sum + p.sales, 0.0);
 
       // Ensure that the result is formatted as a number with two decimal places
-      const formattedSales = parseFloat(totalSales.toFixed(1)); // Format as number with 2 decimals
+      const truncated = Math.floor(totalSales * 100) / 100; // Truncate to 2 decimal places
+      const formattedSales = Number(truncated.toFixed(1)); // Format as number with 2 decimals
 
       res.json({ sales: formattedSales });
     } catch (err) {
@@ -146,4 +147,5 @@ connectDB().then(() => {
     console.log("Server listening on port 4000");
   });
 });
+
 
