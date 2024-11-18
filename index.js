@@ -23,7 +23,10 @@ const connectDB = async () => {
 };
 
 const formatDecimal = (value, decimals = 2) => {
-  return Number(Math.floor(value * 10 ** decimals) / 10 ** decimals);
+
+  const decimalValue = value.toFixed(2)
+ 
+  return  decimalValue  // Ensure rounding and conversion to number
 };
 
 const validateProductInput = (name, amount, price) => {
@@ -109,7 +112,7 @@ connectDB().then(() => {
       }
 
       product.stock -= amount;
-      product.sales += price ? formatDecimal(amount * price, 2) : 0;
+      product.sales += price ? (amount*price) : 0;
 
       await product.save();
 
@@ -157,5 +160,7 @@ process.on("SIGINT", async () => {
   console.log("Database connection closed.");
   process.exit(0);
 });
+
+
 
 
