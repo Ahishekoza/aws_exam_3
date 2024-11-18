@@ -47,7 +47,7 @@ connectDB().then(() => {
     const { name, amount = 1 } = req.body;
 
     if (!validateProductInput(name, amount)) {
-      return res.status(400).json({ message: "Invalid input" });
+      return res.status(400).json({ message: "ERROR" });
     }
 
     try {
@@ -62,7 +62,7 @@ connectDB().then(() => {
       await product.save();
       res.status(200).json({ name: product.name, amount: product.stock });
     } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "ERROR" });
     }
   });
 
@@ -90,7 +90,7 @@ connectDB().then(() => {
 
       res.status(200).json(result);
     } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "ERROR" });
     }
   });
 
@@ -99,13 +99,13 @@ connectDB().then(() => {
     const { name, amount = 1, price } = req.body;
 
     if (!validateProductInput(name, amount, price)) {
-      return res.status(400).json({ message: "Invalid input" });
+      return res.status(400).json({ message: "ERROR" });
     }
 
     try {
       const product = await Inventory.findOne({ name });
       if (!product || product.stock < amount) {
-        return res.status(400).json({ message: "Insufficient stock or product not found" });
+        return res.status(400).json({ message: "ERROR" });
       }
 
       product.stock -= amount;
@@ -115,7 +115,7 @@ connectDB().then(() => {
 
       res.status(200).json({ name, amount, ...(price && { price }) });
     } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "ERROR" });
     }
   });
 
@@ -127,7 +127,7 @@ connectDB().then(() => {
 
       res.status(200).json({ sales: formatDecimal(totalSales, 2) });
     } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "ERROR" });
     }
   });
 
@@ -137,7 +137,7 @@ connectDB().then(() => {
       await Inventory.deleteMany({});
       res.status(204).send();
     } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "ERROR" });
     }
   });
 
