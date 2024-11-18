@@ -24,9 +24,9 @@ const connectDB = async () => {
 
 const formatDecimal = (value, decimals = 2) => {
 
-  const decimalValue = value.toFixed(2)
+  const decimalValue = value.toFixed(1)
  
-  return  decimalValue  // Ensure rounding and conversion to number
+  return decimalValue  // Ensure rounding and conversion to number
 };
 
 const validateProductInput = (name, amount, price) => {
