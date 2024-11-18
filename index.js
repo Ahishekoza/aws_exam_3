@@ -24,7 +24,7 @@ connectDB().then(() => {
   const inventorySchema = new mongoose.Schema({
     name: { type: String, required: true, unique: true },
     stock: { type: Number, default: 0 },
-    sales: { type: Number, default: 0 },
+    sales: { type: Number, default: 0.0 },
   });
 
   const Inventory = mongoose.model("inventory", inventorySchema);
@@ -105,7 +105,8 @@ connectDB().then(() => {
       }
 
       product.stock -= amount;
-      product.sales += price ? amount * price : 0;
+      product.sales += price ? Math.ceil(amount * price * 100) / 100 : 0;
+
       await product.save();
 
       res.json({ name, amount, price });
@@ -117,9 +118,12 @@ connectDB().then(() => {
   app.get("/v1/sales", async (req, res) => {
     try {
       const products = await Inventory.find();
-      const totalSales = products.reduce((sum, p) => sum + p.sales, 0);
-      const formattedSales = totalSales.toFixed(1); // Ensures one decimal place
-      res.json({ sales: formattedSales }); // Send as a string
+      const totalSales = products.reduce((sum, p) => sum + p.sales, 0.0);
+
+      // Ensure that the result is formatted as a number with two decimal places
+      const formattedSales = parseFloat(totalSales.toFixed(1)); // Format as number with 2 decimals
+
+      res.json({ sales: formattedSales });
     } catch (err) {
       res.status(500).json({ message: "ERROR" });
     }
@@ -142,3 +146,4 @@ connectDB().then(() => {
     console.log("Server listening on port 4000");
   });
 });
+
