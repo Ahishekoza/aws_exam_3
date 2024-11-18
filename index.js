@@ -1,11 +1,11 @@
 import express from "express";
-const app = express();
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 
 dotenv.config();
 
+const app = express();
 app.enable("trust proxy");
 app.use(express.json());
 app.use(cors());
@@ -15,9 +15,22 @@ const connectDB = async () => {
     await mongoose.connect(
       `mongodb://${process.env.MONGO_INITDB_ROOT_USERNAME}:${process.env.MONGO_INITDB_ROOT_PASSWORD}@mongo:${process.env.MONGO_PORT}/?authSource=admin`
     );
+    console.log("Connected to MongoDB");
   } catch (error) {
-    console.log(error);
+    console.error("Database connection failed:", error.message);
+    process.exit(1); // Exit on failure
   }
+};
+
+const formatDecimal = (value, decimals = 2) => {
+  return Number(Math.floor(value * 10 ** decimals) / 10 ** decimals);
+};
+
+const validateProductInput = (name, amount, price) => {
+  if (!name || typeof name !== "string" || name.length > 50) return false; // Allow longer names
+  if (amount <= 0 || !Number.isInteger(amount)) return false;
+  if (price !== undefined && price <= 0) return false;
+  return true;
 };
 
 connectDB().then(() => {
@@ -29,19 +42,12 @@ connectDB().then(() => {
 
   const Inventory = mongoose.model("inventory", inventorySchema);
 
+  // Add stock
   app.post("/v1/stocks", async (req, res) => {
     const { name, amount = 1 } = req.body;
 
-    if (!name || typeof name !== "string" || name.length > 8) {
-      return res.status(400).json({ message: "ERROR" });
-    }
-
-    if (
-      typeof amount !== "number" ||
-      amount <= 0 ||
-      !Number.isInteger(amount)
-    ) {
-      return res.status(400).json({ message: "ERROR" });
+    if (!validateProductInput(name, amount)) {
+      return res.status(400).json({ message: "Invalid input" });
     }
 
     try {
@@ -56,89 +62,86 @@ connectDB().then(() => {
       await product.save();
       res.status(200).json({ name: product.name, amount: product.stock });
     } catch (error) {
-      res.status(500).json({ message: "ERROR" });
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 
+  // Get stocks
   app.get("/v1/stocks/:name?", async (req, res) => {
     const { name } = req.params;
 
     try {
       if (name) {
         const product = await Inventory.findOne({ name });
-        res.status(200).json({ [name]: product ? product.stock : 0 }); // Use 'stock'
-      } else {
-        const allStocks = await Inventory.find({});
-        const result = {};
-        allStocks.forEach((product) => {
-          if (product.stock > 0) {
-            // Use 'stock'
-            result[product.name] = product.stock;
-          }
-        });
-        res.status(200).json(result);
+        if (!product) {
+          return res.status(404).json({ message: "Product not found" });
+        }
+        return res.status(200).json({ [name]: product.stock });
       }
+
+      const allStocks = await Inventory.find({});
+      const result = {};
+
+      allStocks.forEach((product) => {
+        if (product.stock > 0) {
+          result[product.name] = product.stock;
+        }
+      });
+
+      res.status(200).json(result);
     } catch (error) {
-      res.status(500).json({ message: "ERROR" });
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 
+  // Add sales
   app.post("/v1/sales", async (req, res) => {
     const { name, amount = 1, price } = req.body;
 
-    if (
-      !name ||
-      typeof name !== "string" ||
-      name.length > 8 ||
-      !/^[a-zA-Z]+$/.test(name) ||
-      amount <= 0 ||
-      !Number.isInteger(amount) ||
-      (price && price <= 0)
-    ) {
-      return res.status(400).json({ message: "ERROR" });
+    if (!validateProductInput(name, amount, price)) {
+      return res.status(400).json({ message: "Invalid input" });
     }
 
     try {
       const product = await Inventory.findOne({ name });
       if (!product || product.stock < amount) {
-        return res.status(400).json({ message: "ERROR" });
+        return res.status(400).json({ message: "Insufficient stock or product not found" });
       }
 
       product.stock -= amount;
-      product.sales += price ? Math.ceil(amount * price * 100) / 100 : 0;
+      product.sales += price ? formatDecimal(amount * price, 2) : 0;
 
       await product.save();
 
-      res.json({ name, amount, price });
-    } catch (err) {
-      res.status(500).json({ message: "ERROR" });
+      res.status(200).json({ name, amount, ...(price && { price }) });
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 
+  // Get total sales
   app.get("/v1/sales", async (req, res) => {
     try {
       const products = await Inventory.find();
       const totalSales = products.reduce((sum, p) => sum + p.sales, 0.0);
 
-      // Ensure that the result is formatted as a number with two decimal places
-      const truncated = Math.floor(totalSales * 100) / 100; // Truncate to 2 decimal places
-      const formattedSales = Number(truncated.toFixed(1)); // Format as number with 2 decimals
-
-      res.json({ sales: formattedSales });
-    } catch (err) {
-      res.status(500).json({ message: "ERROR" });
+      res.status(200).json({ sales: formatDecimal(totalSales, 2) });
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 
+  // Delete all stocks
   app.delete("/v1/stocks", async (req, res) => {
     try {
       await Inventory.deleteMany({});
       res.status(204).send();
-    } catch (err) {
-      res.status(500).json({ message: "ERROR" });
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 
+  // Root endpoint
   app.get("/", (req, res) => {
     res.status(200).json({ message: "OK" });
   });
@@ -146,6 +149,13 @@ connectDB().then(() => {
   app.listen(4000, () => {
     console.log("Server listening on port 4000");
   });
+});
+
+// Graceful shutdown
+process.on("SIGINT", async () => {
+  await mongoose.connection.close();
+  console.log("Database connection closed.");
+  process.exit(0);
 });
 
 
